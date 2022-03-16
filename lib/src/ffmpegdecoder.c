@@ -73,7 +73,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				{
 					for (int j = 0;; j++)
 					{
-						if (!decoder->av_codec->hw_configs[i])
+						if (!decoder->av_codec->hw_configs[j])
 						{
 							CHIAKI_LOGE(log, "found null hw_config at index %d", j);
 							break;
@@ -88,6 +88,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				CHIAKI_LOGE(log, "avcodec_config: %s", avcodec_configuration());
 				goto error_codec_context;
 			}
+			CHIAKI_LOGI(log, "found hw_config: ", av_hwdevice_get_type_name(config->device_type));
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
