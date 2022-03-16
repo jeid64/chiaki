@@ -56,13 +56,15 @@ typedef enum {
 	CHIAKI_VIDEO_RESOLUTION_PRESET_360p = 1,
 	CHIAKI_VIDEO_RESOLUTION_PRESET_540p = 2,
 	CHIAKI_VIDEO_RESOLUTION_PRESET_720p = 3,
-	CHIAKI_VIDEO_RESOLUTION_PRESET_1080p = 4
+	CHIAKI_VIDEO_RESOLUTION_PRESET_1080p = 4,
+	CHIAKI_VIDEO_RESOLUTION_PRESET_4k = 5
 } ChiakiVideoResolutionPreset;
 
 typedef enum {
 	// values must not change
 	CHIAKI_VIDEO_FPS_PRESET_30 = 30,
-	CHIAKI_VIDEO_FPS_PRESET_60 = 60
+	CHIAKI_VIDEO_FPS_PRESET_60 = 60,
+	CHIAKI_VIDEO_FPS_PRESET_120 = 120
 } ChiakiVideoFPSPreset;
 
 CHIAKI_EXPORT void chiaki_connect_video_profile_preset(ChiakiConnectVideoProfile *profile, ChiakiVideoResolutionPreset resolution, ChiakiVideoFPSPreset fps);

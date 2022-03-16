@@ -31,13 +31,15 @@ enum class VideoResolutionPreset(val value: Int)
 	RES_360P(1),
 	RES_540P(2),
 	RES_720P(3),
-	RES_1080P(4)
+	RES_1080P(4),
+	RES_4K(5)
 }
 
 enum class VideoFPSPreset(val value: Int)
 {
 	FPS_30(30),
-	FPS_60(60)
+	FPS_60(60),
+	FPS_120(120)
 }
 
 enum class Codec(val value: Int)

@@ -81,8 +81,10 @@
     <string name="preferences_resolution_title_540p">540p</string>
     <string name="preferences_resolution_title_720p">720p</string>
     <string name="preferences_resolution_title_1080p">1080p</string>
+    <string name="preferences_resolution_title_4k">4k</string>
     <string name="preferences_fps_title_30">30</string>
     <string name="preferences_fps_title_60">60</string>
+    <string name="preferences_fps_title_120">120</string>
     <string name="preferences_bitrate_auto">Auto (%d)</string>
     <string name="preferences_codec_title_h264">H264</string>
     <string name="preferences_codec_title_h265">H265 (PS5 only)</string>

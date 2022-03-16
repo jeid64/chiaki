@@ -257,6 +257,8 @@ std::string Settings::ResolutionPresetToString(ChiakiVideoResolutionPreset resol
 			return "720p";
 		case CHIAKI_VIDEO_RESOLUTION_PRESET_1080p:
 			return "1080p";
+		case CHIAKI_VIDEO_RESOLUTION_PRESET_4k:
+			return "4k";
 	}
 	return "UNKNOWN";
 }
@@ -273,6 +275,8 @@ int Settings::ResolutionPresetToInt(ChiakiVideoResolutionPreset resolution)
 			return 720;
 		case CHIAKI_VIDEO_RESOLUTION_PRESET_1080p:
 			return 1080;
+		case CHIAKI_VIDEO_RESOLUTION_PRESET_4k:
+			return 2160;
 	}
 	return 0;
 }
@@ -287,6 +291,8 @@ ChiakiVideoResolutionPreset Settings::StringToResolutionPreset(std::string value
 		return CHIAKI_VIDEO_RESOLUTION_PRESET_540p;
 	else if(value.compare("360p") == 0)
 		return CHIAKI_VIDEO_RESOLUTION_PRESET_360p;
+	else if(value.compare("4k") == 0)
+		return CHIAKI_VIDEO_RESOLUTION_PRESET_4k;
 
 	// default
 	CHIAKI_LOGE(&this->log, "Unable to parse String resolution: %s",
