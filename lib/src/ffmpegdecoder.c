@@ -30,6 +30,15 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 	decoder->hw_device_ctx = NULL;
 	decoder->hw_pix_fmt = AV_PIX_FMT_NONE;
 
+	// Debug print all our supported hwcontext's
+	enum AVHWDeviceType current_dt = AV_HWDEVICE_TYPE_NONE;
+	do
+	{
+		current_dt = av_hwdevice_iterate_types(current_dt);
+
+		CHIAKI_LOGI(log, "available device type: %s", av_hwdevice_get_type_name(current_dt));
+	} while (current_dt != AV_HWDEVICE_TYPE_NONE);
+
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 10, 100)
 	CHIAKI_LOGI(log, "LIBAVCODEC version < 58,10,100");
 	avcodec_register_all();
@@ -56,6 +65,14 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 		if (type == AV_HWDEVICE_TYPE_NONE)
 		{
 			CHIAKI_LOGE(log, "Hardware decoder \"%s\" not found", hw_decoder_name);
+			goto error_codec_context;
+		}
+
+		AVBufferRef *av_gpu_decoder = NULL;
+		const int hwdevice_res = av_hwdevice_ctx_create(&av_gpu_decoder, type, NULL, NULL, 0);
+		if (hwdevice_res < 0)
+		{
+			CHIAKI_LOGE(log, "%s av_hwdevice_ctx_create failed: %s", hw_decoder_name, av_err2str(hwdevice_res));
 			goto error_codec_context;
 		}
 
@@ -100,12 +117,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			//}
 		}
 
-		if (av_hwdevice_ctx_create(&decoder->hw_device_ctx, type, NULL, NULL, 0) < 0)
-		{
-			CHIAKI_LOGE(log, "Failed to create hwdevice context");
-			goto error_codec_context;
-		}
-		decoder->codec_context->hw_device_ctx = av_buffer_ref(decoder->hw_device_ctx);
+		decoder->codec_context->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
 	}
 
 	if (avcodec_open2(decoder->codec_context, decoder->av_codec, NULL) < 0)
