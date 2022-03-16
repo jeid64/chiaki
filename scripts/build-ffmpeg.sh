@@ -14,7 +14,7 @@ make -j4 || exit 1
 make install || exit 1
 
 echo "ffmpeg pkg-config:"
-for i in $(find "$ROOT/ffmpeg-prefix" '*.pc'); do
+for i in $(find "$ROOT/ffmpeg-prefix/**/*.pc"); do
     echo "${i}"
     cat ${i}
 done
