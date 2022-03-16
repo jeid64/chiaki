@@ -89,7 +89,9 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				goto error_codec_context;
 			}
 			CHIAKI_LOGI(log, "found hw_config: ", av_hwdevice_get_type_name(config->device_type));
-			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
+			// if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
+			// YOLO, lets remove the check that seemingly always fails and only look at methods and pix_fmt
+			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
 				break;
