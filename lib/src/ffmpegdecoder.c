@@ -130,6 +130,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 		// source code.
 		decoder->codec_context->opaque = decoder;
 		decoder->codec_context->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
+		decoder->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
 		decoder->codec_context->get_format = chiaki_hw_get_format;
 	}
 
