@@ -115,13 +115,14 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_AD_HOC: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC);
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC)
 			{
-				CHIAKI_LOGI(log, "only adhoc hw config found, continuing anyway");
 				decoder->hw_pix_fmt = config->pix_fmt;
+				decoder->codec_context->pix_fmt = config->pix_fmt;
 				break;
 			}
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
+				decoder->codec_context->pix_fmt = config->pix_fmt;
 				break;
 			}
 		}
