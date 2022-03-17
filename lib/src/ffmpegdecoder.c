@@ -3,6 +3,7 @@
 
 #include <libavutil/pixdesc.h>
 #include <libavcodec/avcodec.h>
+#include <assert.h>
 
 static enum AVCodecID chiaki_codec_av_codec_id(ChiakiCodec codec)
 {
@@ -36,6 +37,66 @@ CHIAKI_EXPORT enum AVPixelFormat chiaki_hw_get_format(AVCodecContext *av_codec_c
 	return chiaki_ffmpeg_decoder_get_pixel_format(decoder);
 }
 
+// Taking some additional inspiration from the MPV source code
+CHIAKI_EXPORT void chiaki_maybe_find_hwcodec(ChiakiLog *log, ChiakiCodec ccodec, const char *hwdec_name)
+{
+	const enum AVCodecID av_codec_id = chiaki_codec_av_codec_id(ccodec);
+	const AVCodec *codec = NULL;
+	void *iter = NULL;
+	while (1)
+	{
+		codec = av_codec_iterate(&iter);
+		if (!codec)
+		{
+			break;
+		}
+		// Skip codec's we didn't request, ones that are not video, and ones that are not encoders
+		if (codec->type != AVMEDIA_TYPE_VIDEO || !av_codec_is_decoder(codec))
+		{
+			continue;
+		}
+
+		// Check to see if this is a harwdware codec
+		const char *wrapper = NULL;
+		if (codec->capabilities & (AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_HYBRID))
+		{
+			wrapper = codec->wrapper_name;
+		}
+		bool found_any = false;
+		for (int n = 0;; n++)
+		{
+			const AVCodecHWConfig *config = avcodec_get_hw_config(codec, n);
+			if (!config)
+			{
+				break;
+			}
+			// Supports the newer device context api
+			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX || config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX)
+			{
+				const char *name = av_hwdevice_get_type_name(config->device_type);
+				assert(name);
+				CHIAKI_LOGI(log, "Looking at device/frame hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, name);
+				found_any = true;
+			}
+			else if (config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL)
+			{
+				const char *name = wrapper;
+				if (!name)
+				{
+					name = av_get_pix_fmt_name(config->pix_fmt);
+				}
+				assert(name);
+				CHIAKI_LOGI(log, "Looking at internal hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, name);
+				found_any = true;
+			}
+		}
+		if (!found_any && wrapper)
+		{
+			CHIAKI_LOGI(log, "Looking at unknown hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, wrapper);
+		}
+	}
+}
+
 CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *decoder, ChiakiLog *log,
 														 ChiakiCodec codec, const char *hw_decoder_name,
 														 ChiakiFfmpegFrameAvailable frame_available_cb, void *frame_available_cb_user)
@@ -49,6 +110,10 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 
 	decoder->hw_device_ctx = NULL;
 	decoder->hw_pix_fmt = AV_PIX_FMT_NONE;
+
+	// debugging our available codecs by using an mpv style iteration over
+	// all the codecs
+	chiaki_maybe_find_hwcodec(log, codec, hw_decoder_name);
 
 	// Debug print all our supported hwcontext's
 	enum AVHWDeviceType current_dt = AV_HWDEVICE_TYPE_NONE;
@@ -116,11 +181,6 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_INTERNAL: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_AD_HOC: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC);
-			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC)
-			{
-				decoder->hw_pix_fmt = config->pix_fmt;
-				break;
-			}
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
