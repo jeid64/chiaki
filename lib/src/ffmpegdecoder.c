@@ -21,16 +21,15 @@ CHIAKI_EXPORT enum AVPixelFormat chiaki_hw_get_format(AVCodecContext *av_codec_c
 	ChiakiFfmpegDecoder *decoder = av_codec_ctx->opaque;
 	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; ++p)
 	{
-		if (*p == av_codec_ctx->pix_fmt)
+		if (*p == decoder->hw_pix_fmt)
 		{
 			CHIAKI_LOGI(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(av_codec_ctx->pix_fmt));
-			return av_codec_ctx->pix_fmt;
+			return *p;
 		}
 	}
 	CHIAKI_LOGW(decoder->log, "Failed to find compatible GPU AV formt, falling back to CPU");
 	av_buffer_unref(&av_codec_ctx->hw_device_ctx);
-	av_codec_ctx->pix_fmt = chiaki_ffmpeg_decoder_get_pixel_format(decoder);
-	return av_codec_ctx->pix_fmt;
+	return chiaki_ffmpeg_decoder_get_pixel_format(decoder);
 }
 
 CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *decoder, ChiakiLog *log,
@@ -116,13 +115,11 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
-				decoder->codec_context->pix_fmt = config->pix_fmt;
 				break;
 			}
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
-				decoder->codec_context->pix_fmt = config->pix_fmt;
 				break;
 			}
 		}
