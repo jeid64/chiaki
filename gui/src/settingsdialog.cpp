@@ -139,8 +139,7 @@ SettingsDialog::SettingsDialog(Settings *settings, QWidget *parent) : QDialog(pa
 		{ CHIAKI_VIDEO_RESOLUTION_PRESET_360p, "360p" },
 		{ CHIAKI_VIDEO_RESOLUTION_PRESET_540p, "540p" },
 		{ CHIAKI_VIDEO_RESOLUTION_PRESET_720p, "720p" },
-		{ CHIAKI_VIDEO_RESOLUTION_PRESET_1080p, "1080p (PS5 and PS4 Pro only)" },
-		{ CHIAKI_VIDEO_RESOLUTION_PRESET_4k, "4k (PS5 Only)" }
+		{ CHIAKI_VIDEO_RESOLUTION_PRESET_1080p, "1080p (PS5 and PS4 Pro only)" }
 	};
 	auto current_res = settings->GetResolution();
 	for(const auto &p : resolution_strings)
@@ -155,8 +154,7 @@ SettingsDialog::SettingsDialog(Settings *settings, QWidget *parent) : QDialog(pa
 	fps_combo_box = new QComboBox(this);
 	static const QList<QPair<ChiakiVideoFPSPreset, QString>> fps_strings = {
 		{ CHIAKI_VIDEO_FPS_PRESET_30, "30" },
-		{ CHIAKI_VIDEO_FPS_PRESET_60, "60" },
-		{ CHIAKI_VIDEO_FPS_PRESET_120, "120" }
+		{ CHIAKI_VIDEO_FPS_PRESET_60, "60" }
 	};
 	auto current_fps = settings->GetFPS();
 	for(const auto &p : fps_strings)

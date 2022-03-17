@@ -24,14 +24,12 @@ class Preferences(context: Context)
 		RES_540P("540p", R.string.preferences_resolution_title_540p, VideoResolutionPreset.RES_540P),
 		RES_720P("720p", R.string.preferences_resolution_title_720p, VideoResolutionPreset.RES_720P),
 		RES_1080P("1080p", R.string.preferences_resolution_title_1080p, VideoResolutionPreset.RES_1080P),
-		RES_4K("4k", R.string.preferences_resolution_title_4k, VideoResolutionPreset.RES_4K),
 	}
 
 	enum class FPS(val value: String, @StringRes val title: Int, val preset: VideoFPSPreset)
 	{
 		FPS_30("30", R.string.preferences_fps_title_30, VideoFPSPreset.FPS_30),
-		FPS_60("60", R.string.preferences_fps_title_60, VideoFPSPreset.FPS_60),
-		FPS_120("120", R.string.preferences_fps_title_120, VideoFPSPreset.FPS_120)
+		FPS_60("60", R.string.preferences_fps_title_60, VideoFPSPreset.FPS_60)
 	}
 
 	enum class Codec(val value: String, @StringRes val title: Int, val codec: com.metallic.chiaki.lib.Codec)
