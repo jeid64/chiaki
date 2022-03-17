@@ -23,8 +23,12 @@ CHIAKI_EXPORT enum AVPixelFormat chiaki_hw_get_format(AVCodecContext *av_codec_c
 	{
 		if (*p == decoder->hw_pix_fmt)
 		{
-			CHIAKI_LOGI(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(av_codec_ctx->pix_fmt));
+			CHIAKI_LOGI(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(*p));
 			return *p;
+		}
+		else
+		{
+			CHIAKI_LOGI(decoder->log, "chiaki_hw_get_format: %s != %s", av_get_pix_fmt_name(*p), av_get_pix_fmt_name(decoder->hw_pix_fmt));
 		}
 	}
 	CHIAKI_LOGW(decoder->log, "Failed to find compatible GPU AV formt, falling back to CPU");
