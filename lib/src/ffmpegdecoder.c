@@ -40,7 +40,6 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 	decoder->log = log;
 	decoder->frame_available_cb = frame_available_cb;
 	decoder->frame_available_cb_user = frame_available_cb_user;
-	av_log_set_level(AV_LOG_DEBUG);
 	ChiakiErrorCode err = chiaki_mutex_init(&decoder->mutex, false);
 	if (err != CHIAKI_ERR_SUCCESS)
 		return err;
@@ -61,6 +60,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 	CHIAKI_LOGI(log, "LIBAVCODEC version < 58,10,100");
 	avcodec_register_all();
 #endif
+	// First we find the requested codec
 	enum AVCodecID av_codec = chiaki_codec_av_codec_id(codec);
 	decoder->av_codec = avcodec_find_decoder(av_codec);
 	if (!decoder->av_codec)
@@ -68,7 +68,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 		CHIAKI_LOGE(log, "%s Codec not available", chiaki_codec_name(codec));
 		goto error_mutex;
 	}
-
+	// Then we allocate a AVCodecContext structure for it
 	decoder->codec_context = avcodec_alloc_context3(decoder->av_codec);
 	if (!decoder->codec_context)
 	{
@@ -76,8 +76,10 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 		goto error_mutex;
 	}
 
+	// If we were passed the name of a hardware accelerator attempt to configure it
 	if (hw_decoder_name)
 	{
+		// Grab the AVHWDeviceType for the name we were given
 		CHIAKI_LOGI(log, "Using hardware decoder \"%s\"", hw_decoder_name);
 		enum AVHWDeviceType type = av_hwdevice_find_type_by_name(hw_decoder_name);
 		if (type == AV_HWDEVICE_TYPE_NONE)
@@ -85,6 +87,8 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			CHIAKI_LOGE(log, "Hardware decoder \"%s\" not found", hw_decoder_name);
 			goto error_codec_context;
 		}
+
+		// Allocate the hwdevice context
 		AVBufferRef *av_gpu_decoder = NULL;
 		const int hwdevice_res = av_hwdevice_ctx_create(&av_gpu_decoder, type, NULL, NULL, 0);
 		if (hwdevice_res < 0)
@@ -93,24 +97,13 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			goto error_codec_context;
 		}
 
+		// Do this weird loop thing to find a hardware config. This is the crux of where we seemingly get stuck on windows.
 		for (int i = 0;; i++)
 		{
 			CHIAKI_LOGI(log, "get_hw_config for index %d", i);
 			const AVCodecHWConfig *config = avcodec_get_hw_config(decoder->av_codec, i);
 			if (!config)
 			{
-				// NOTE(rossdylan): This conditional is just for emitting different debug info
-				if (!decoder->av_codec->hw_configs)
-				{
-					CHIAKI_LOGE(log, "av_codec '%s' has no hw_configs", decoder->av_codec->name);
-				}
-				else
-				{
-					if (!decoder->av_codec->hw_configs[i])
-					{
-						CHIAKI_LOGE(log, "found null hw_config at index %d", i);
-					}
-				}
 				CHIAKI_LOGE(log, "avcodec_get_hw_config failed: Decoder %s does not support device type %s", decoder->av_codec->name, av_hwdevice_get_type_name(type));
 				CHIAKI_LOGE(log, "avcodec_config: %s", avcodec_configuration());
 				goto error_codec_context;
@@ -132,6 +125,8 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				break;
 			}
 		}
+		// Now we  setup our AVCodecContext for hardware decoding. I'm cargo culting some of this from the yuzu
+		// source code.
 		decoder->codec_context->opaque = decoder;
 		decoder->codec_context->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
 		decoder->codec_context->get_format = chiaki_hw_get_format;
