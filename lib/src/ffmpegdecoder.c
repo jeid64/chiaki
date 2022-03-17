@@ -1,6 +1,7 @@
 
 #include <chiaki/ffmpegdecoder.h>
 
+#include <libavutil/pixdesc.h>
 #include <libavcodec/avcodec.h>
 
 static enum AVCodecID chiaki_codec_av_codec_id(ChiakiCodec codec)
@@ -17,14 +18,15 @@ static enum AVCodecID chiaki_codec_av_codec_id(ChiakiCodec codec)
 
 CHIAKI_EXPORT enum AVPixelFormat chiaki_hw_get_format(AVCodecContext *av_codec_ctx, const enum AVPixelFormat *pix_fmts)
 {
+	ChiakiFfmpegDecoder *decoder = av_codec_ctx->opaque;
 	for (const enum AVPixelFormat *p = pix_fmts; *p != AV_PIX_FMT_NONE; ++p)
 	{
 		if (*p == av_codec_ctx->pix_fmt)
 		{
+			CHIAKI_LOGI(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(av_codec_ctx->pix_fmt));
 			return av_codec_ctx->pix_fmt;
 		}
 	}
-	ChiakiFfmpegDecoder *decoder = av_codec_ctx->opaque;
 	CHIAKI_LOGW(decoder->log, "Failed to find compatible GPU AV formt, falling back to CPU");
 	av_buffer_unref(&av_codec_ctx->hw_device_ctx);
 	av_codec_ctx->pix_fmt = chiaki_ffmpeg_decoder_get_pixel_format(decoder);
@@ -113,7 +115,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				CHIAKI_LOGE(log, "avcodec_config: %s", avcodec_configuration());
 				goto error_codec_context;
 			}
-			CHIAKI_LOGI(log, "found hw_config: ", av_hwdevice_get_type_name(config->device_type));
+			CHIAKI_LOGI(log, "found hw_config type: '%s' methods: %d", av_hwdevice_get_type_name(config->device_type), config->methods);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_INTERNAL: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL);
