@@ -22,7 +22,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 	decoder->log = log;
 	decoder->frame_available_cb = frame_available_cb;
 	decoder->frame_available_cb_user = frame_available_cb_user;
-
+	av_log_set_level(AV_LOG_DEBUG);
 	ChiakiErrorCode err = chiaki_mutex_init(&decoder->mutex, false);
 	if (err != CHIAKI_ERR_SUCCESS)
 		return err;
@@ -67,7 +67,6 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			CHIAKI_LOGE(log, "Hardware decoder \"%s\" not found", hw_decoder_name);
 			goto error_codec_context;
 		}
-
 		AVBufferRef *av_gpu_decoder = NULL;
 		const int hwdevice_res = av_hwdevice_ctx_create(&av_gpu_decoder, type, NULL, NULL, 0);
 		if (hwdevice_res < 0)
@@ -88,17 +87,10 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				}
 				else
 				{
-					for (int j = 0;; j++)
+					if (!decoder->av_codec->hw_configs[i])
 					{
-						if (!decoder->av_codec->hw_configs[j])
-						{
-							CHIAKI_LOGE(log, "found null hw_config at index %d", j);
-							break;
-						}
-						else
-						{
-							CHIAKI_LOGE(log, "found hw_config at index %d", j);
-						}
+						CHIAKI_LOGE(log, "found null hw_config at index %d", i);
+						break;
 					}
 				}
 				CHIAKI_LOGE(log, "avcodec_get_hw_config failed: Decoder %s does not support device type %s", decoder->av_codec->name, av_hwdevice_get_type_name(type));
@@ -109,12 +101,12 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_INTERNAL: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL);
-			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_ADHOC: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC);
-			// if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
-			//{
-			decoder->hw_pix_fmt = config->pix_fmt;
-			break;
-			//}
+			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_AD_HOC: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC);
+			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
+			{
+				decoder->hw_pix_fmt = config->pix_fmt;
+				break;
+			}
 		}
 
 		decoder->codec_context->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
