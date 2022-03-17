@@ -108,7 +108,7 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 				CHIAKI_LOGE(log, "avcodec_config: %s", avcodec_configuration());
 				goto error_codec_context;
 			}
-			CHIAKI_LOGI(log, "found hw_config type: '%s' methods: %d", av_hwdevice_get_type_name(config->device_type), config->methods);
+			CHIAKI_LOGI(log, "found hw_config type: '%s', methods: %d, pix_fmt: '%s'", av_hwdevice_get_type_name(config->device_type), config->methods, av_get_pix_fmt_name(config->pix_fmt));
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX);
 			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_INTERNAL: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL);
