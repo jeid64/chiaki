@@ -24,77 +24,13 @@ CHIAKI_EXPORT enum AVPixelFormat chiaki_hw_get_format(AVCodecContext *av_codec_c
 	{
 		if (*p == decoder->hw_pix_fmt)
 		{
-			CHIAKI_LOGI(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(*p));
+			CHIAKI_LOGV(decoder->log, "AVPixelFormat %s selected", av_get_pix_fmt_name(*p));
 			return *p;
-		}
-		else
-		{
-			CHIAKI_LOGI(decoder->log, "chiaki_hw_get_format: %s != %s", av_get_pix_fmt_name(*p), av_get_pix_fmt_name(decoder->hw_pix_fmt));
 		}
 	}
 	CHIAKI_LOGW(decoder->log, "Failed to find compatible GPU AV formt, falling back to CPU");
 	av_buffer_unref(&av_codec_ctx->hw_device_ctx);
 	return chiaki_ffmpeg_decoder_get_pixel_format(decoder);
-}
-
-// Taking some additional inspiration from the MPV source code
-CHIAKI_EXPORT void chiaki_maybe_find_hwcodec(ChiakiLog *log, ChiakiCodec ccodec, const char *hwdec_name)
-{
-	const enum AVCodecID av_codec_id = chiaki_codec_av_codec_id(ccodec);
-	const AVCodec *codec = NULL;
-	void *iter = NULL;
-	while (1)
-	{
-		codec = av_codec_iterate(&iter);
-		if (!codec)
-		{
-			break;
-		}
-		// Skip codec's we didn't request, ones that are not video, and ones that are not encoders
-		if (codec->type != AVMEDIA_TYPE_VIDEO || !av_codec_is_decoder(codec))
-		{
-			continue;
-		}
-
-		// Check to see if this is a harwdware codec
-		const char *wrapper = NULL;
-		if (codec->capabilities & (AV_CODEC_CAP_HARDWARE | AV_CODEC_CAP_HYBRID))
-		{
-			wrapper = codec->wrapper_name;
-		}
-		bool found_any = false;
-		for (int n = 0;; n++)
-		{
-			const AVCodecHWConfig *config = avcodec_get_hw_config(codec, n);
-			if (!config)
-			{
-				break;
-			}
-			// Supports the newer device context api
-			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX || config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX)
-			{
-				const char *name = av_hwdevice_get_type_name(config->device_type);
-				assert(name);
-				CHIAKI_LOGI(log, "Looking at device/frame hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, name);
-				found_any = true;
-			}
-			else if (config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL)
-			{
-				const char *name = wrapper;
-				if (!name)
-				{
-					name = av_get_pix_fmt_name(config->pix_fmt);
-				}
-				assert(name);
-				CHIAKI_LOGI(log, "Looking at internal hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, name);
-				found_any = true;
-			}
-		}
-		if (!found_any && wrapper)
-		{
-			CHIAKI_LOGI(log, "Looking at unknown hwcodec: codec=%s, wrapper=%s, name=%s", codec->name, wrapper, wrapper);
-		}
-	}
 }
 
 CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *decoder, ChiakiLog *log,
@@ -110,19 +46,6 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 
 	decoder->hw_device_ctx = NULL;
 	decoder->hw_pix_fmt = AV_PIX_FMT_NONE;
-
-	// debugging our available codecs by using an mpv style iteration over
-	// all the codecs
-	chiaki_maybe_find_hwcodec(log, codec, hw_decoder_name);
-
-	// Debug print all our supported hwcontext's
-	enum AVHWDeviceType current_dt = AV_HWDEVICE_TYPE_NONE;
-	do
-	{
-		current_dt = av_hwdevice_iterate_types(current_dt);
-
-		CHIAKI_LOGI(log, "available device type: %s", av_hwdevice_get_type_name(current_dt));
-	} while (current_dt != AV_HWDEVICE_TYPE_NONE);
 
 #if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(58, 10, 100)
 	CHIAKI_LOGI(log, "LIBAVCODEC version < 58,10,100");
@@ -165,30 +88,30 @@ CHIAKI_EXPORT ChiakiErrorCode chiaki_ffmpeg_decoder_init(ChiakiFfmpegDecoder *de
 			goto error_codec_context;
 		}
 
-		// Do this weird loop thing to find a hardware config. This is the crux of where we seemingly get stuck on windows.
+		// iterate over this codec's supported hardware configs.
+		// NOTE(rossdylan): D3D11va has two different hwaccel modules in ffmpeg.
+		// 1. is d3d11va which is actually some legacy crap that only exposes an adhoc hw config
+		// 2. is d3d11va2 which is the one we actaully want.
+		// The worst part is that d3d11va /kinda/ looks right, however I have no idea how
+		// to do the adhoc configuration it requires.
 		for (int i = 0;; i++)
 		{
-			CHIAKI_LOGI(log, "get_hw_config for index %d", i);
 			const AVCodecHWConfig *config = avcodec_get_hw_config(decoder->av_codec, i);
 			if (!config)
 			{
+				// Dump out some interesting information if we've failed to find any supported
+				// hardware configs.
 				CHIAKI_LOGE(log, "avcodec_get_hw_config failed: Decoder %s does not support device type %s", decoder->av_codec->name, av_hwdevice_get_type_name(type));
 				CHIAKI_LOGE(log, "avcodec_config: %s", avcodec_configuration());
 				goto error_codec_context;
 			}
-			CHIAKI_LOGI(log, "found hw_config type: '%s', methods: %d, pix_fmt: '%s'", av_hwdevice_get_type_name(config->device_type), config->methods, av_get_pix_fmt_name(config->pix_fmt));
-			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX);
-			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_FRAMES_CTX);
-			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_INTERNAL: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_INTERNAL);
-			CHIAKI_LOGI(log, "methods: AV_CODEC_HW_CONFIG_METHOD_AD_HOC: %d", config->methods & AV_CODEC_HW_CONFIG_METHOD_AD_HOC);
+			CHIAKI_LOGV(log, "found hw_config type: '%s', methods: %d, pix_fmt: '%s'", av_hwdevice_get_type_name(config->device_type), config->methods, av_get_pix_fmt_name(config->pix_fmt));
 			if (config->methods & AV_CODEC_HW_CONFIG_METHOD_HW_DEVICE_CTX && config->device_type == type)
 			{
 				decoder->hw_pix_fmt = config->pix_fmt;
 				break;
 			}
 		}
-		// Now we  setup our AVCodecContext for hardware decoding. I'm cargo culting some of this from the yuzu
-		// source code.
 		decoder->codec_context->opaque = decoder;
 		decoder->codec_context->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
 		decoder->hw_device_ctx = av_buffer_ref(av_gpu_decoder);
